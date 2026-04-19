@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw
+  namespace: ai-platform
+  labels:
+    app: openclaw
+    app.kubernetes.io/name: openclaw
+    app.kubernetes.io/component: contract-analysis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openclaw
+  template:
+    metadata:
+      labels:
+        app: openclaw
+        app.kubernetes.io/name: openclaw
+        app.kubernetes.io/component: contract-analysis
+    spec:
+      containers:
+        - name: openclaw
+          image: openclaw/openclaw:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            # OpenClaw Configuration
+            - name: OPENCLAW_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: api-key
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: openai-api-key
+                  optional: true
+            # Database Configuration
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: database-url
+            # Storage Configuration
+            - name: STORAGE_BUCKET
+              value: "openclaw-documents"
+            - name: STORAGE_REGION
+              value: "us-west-2"
+            # Feature Flags
+            - name: ENABLE_CLAWBACK_DETECTION
+              value: "true"
+            - name: ENABLE_CONTRACT_ANALYSIS
+              value: "true"
+            - name: ENABLE_RISK_SCORING
+              value: "true"
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          volumeMounts:
+            - name: openclaw-data
+              mountPath: /app/data
+            - name: tmp-storage
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: openclaw-data
+          persistentVolumeClaim:
+            claimName: openclaw-data
+        - name: tmp-storage
+          emptyDir:
+            sizeLimit: 10Gi

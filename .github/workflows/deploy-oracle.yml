@@ -1,0 +1,140 @@
+name: Deploy to Oracle Cloud OKE
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'k8s/**'
+      - 'terraform/oracle/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  OCI_REGION: us-ashburn-1
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    defaults:
+      run:
+        working-directory: terraform/oracle
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Setup OCI CLI
+        uses: oracle-actions/run-oci-cli-command@v1.1.1
+        with:
+          command: "oci --version"
+          silent: false
+
+      - name: Configure OCI
+        run: |
+          mkdir -p ~/.oci
+          echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/oci_api_key.pem
+          
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=${{ secrets.OCI_USER_OCID }}
+          fingerprint=${{ secrets.OCI_FINGERPRINT }}
+          tenancy=${{ secrets.OCI_TENANCY_OCID }}
+          region=${{ env.OCI_REGION }}
+          key_file=~/.oci/oci_api_key.pem
+          EOF
+          chmod 600 ~/.oci/config
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      - name: Terraform Plan
+        run: |
+          terraform plan -input=false \
+            -var="tenancy_ocid=${{ secrets.OCI_TENANCY_OCID }}" \
+            -var="user_ocid=${{ secrets.OCI_USER_OCID }}" \
+            -var="fingerprint=${{ secrets.OCI_FINGERPRINT }}" \
+            -var="private_key_path=~/.oci/oci_api_key.pem" \
+            -var="compartment_ocid=${{ secrets.OCI_COMPARTMENT_OCID }}" \
+            -var="namespace=${{ secrets.OCI_NAMESPACE }}" \
+            -var="environment=${{ github.event.inputs.environment || 'dev' }}"
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        run: |
+          terraform apply -auto-approve -input=false \
+            -var="tenancy_ocid=${{ secrets.OCI_TENANCY_OCID }}" \
+            -var="user_ocid=${{ secrets.OCI_USER_OCID }}" \
+            -var="fingerprint=${{ secrets.OCI_FINGERPRINT }}" \
+            -var="private_key_path=~/.oci/oci_api_key.pem" \
+            -var="compartment_ocid=${{ secrets.OCI_COMPARTMENT_OCID }}" \
+            -var="namespace=${{ secrets.OCI_NAMESPACE }}" \
+            -var="environment=${{ github.event.inputs.environment || 'dev' }}"
+
+  deploy:
+    name: Deploy to OKE
+    needs: terraform
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup OCI CLI
+        uses: oracle-actions/run-oci-cli-command@v1.1.1
+        with:
+          command: "oci --version"
+          silent: false
+
+      - name: Configure OCI
+        run: |
+          mkdir -p ~/.oci
+          echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/oci_api_key.pem
+          
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=${{ secrets.OCI_USER_OCID }}
+          fingerprint=${{ secrets.OCI_FINGERPRINT }}
+          tenancy=${{ secrets.OCI_TENANCY_OCID }}
+          region=${{ env.OCI_REGION }}
+          key_file=~/.oci/oci_api_key.pem
+          EOF
+          chmod 600 ~/.oci/config
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Get OKE kubeconfig
+        run: |
+          CLUSTER_ID=$(oci ce cluster list --compartment-id ${{ secrets.OCI_COMPARTMENT_OCID }} --display-name ai-platform-${{ github.event.inputs.environment || 'dev' }} --query "data[0].id" --raw-output)
+          oci ce cluster create-kubeconfig --cluster-id $CLUSTER_ID --file $HOME/.kube/config --region ${{ env.OCI_REGION }} --token-version 2.0.0
+
+      - name: Deploy Open WebUI and Ollama
+        run: |
+          kubectl apply -k k8s/overlays/oracle
+
+      - name: Wait for deployment
+        run: |
+          kubectl rollout status deployment/open-webui -n ai-platform --timeout=300s
+          kubectl rollout status deployment/ollama -n ai-platform --timeout=300s

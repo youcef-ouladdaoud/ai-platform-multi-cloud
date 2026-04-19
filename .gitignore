@@ -1,0 +1,45 @@
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.*.backup
+*.tfvars
+!terraform.tfvars.example
+.terraform.lock.hcl
+
+# Kubernetes
+*.kubeconfig
+kubeconfig
+
+# Secrets
+*.pem
+*.key
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temp files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+dist/
+build/
+
+# Dependencies
+node_modules/
+vendor/

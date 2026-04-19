@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ai-platform
+
+resources:
+  - ../../base
+
+patchesStrategicMerge:
+  - storage-class-patch.yaml
+
+commonLabels:
+  app.kubernetes.io/environment: aws
+
+images:
+  - name: ollama/ollama
+    newTag: latest
+  - name: ghcr.io/open-webui/open-webui
+    newTag: main

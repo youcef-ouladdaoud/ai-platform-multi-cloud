@@ -1,0 +1,89 @@
+name: Deploy to GCP GKE
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'k8s/**'
+      - 'terraform/gcp/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  GCP_REGION: us-central1
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    defaults:
+      run:
+        working-directory: terraform/gcp
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -var="project_id=${{ env.PROJECT_ID }}" -var="environment=${{ github.event.inputs.environment || 'dev' }}"
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve -input=false -var="project_id=${{ env.PROJECT_ID }}" -var="environment=${{ github.event.inputs.environment || 'dev' }}"
+
+  deploy:
+    name: Deploy to GKE
+    needs: terraform
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ai-platform-${{ github.event.inputs.environment || 'dev' }}
+          location: ${{ env.GCP_REGION }}
+
+      - name: Deploy Open WebUI and Ollama
+        run: |
+          kubectl apply -k k8s/overlays/gcp
+
+      - name: Wait for deployment
+        run: |
+          kubectl rollout status deployment/open-webui -n ai-platform --timeout=300s
+          kubectl rollout status deployment/ollama -n ai-platform --timeout=300s

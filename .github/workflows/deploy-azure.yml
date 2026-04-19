@@ -1,0 +1,87 @@
+name: Deploy to Azure AKS
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'k8s/**'
+      - 'terraform/azure/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    defaults:
+      run:
+        working-directory: terraform/azure
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Format
+        run: terraform fmt -check
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -var="environment=${{ github.event.inputs.environment || 'dev' }}" -var="subscription_id=${{ secrets.ARM_SUBSCRIPTION_ID }}"
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve -input=false -var="environment=${{ github.event.inputs.environment || 'dev' }}" -var="subscription_id=${{ secrets.ARM_SUBSCRIPTION_ID }}"
+
+  deploy:
+    name: Deploy to AKS
+    needs: terraform
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials --name ai-platform-${{ github.event.inputs.environment || 'dev' }} --resource-group ai-platform-rg --overwrite-existing
+
+      - name: Deploy Open WebUI and Ollama
+        run: |
+          kubectl apply -k k8s/overlays/azure
+
+      - name: Wait for deployment
+        run: |
+          kubectl rollout status deployment/open-webui -n ai-platform --timeout=300s
+          kubectl rollout status deployment/ollama -n ai-platform --timeout=300s

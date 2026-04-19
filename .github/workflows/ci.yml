@@ -1,0 +1,101 @@
+name: CI - Validate and Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  terraform-validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        provider: [aws, gcp, azure, oracle]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Terraform Init
+        working-directory: terraform/${{ matrix.provider }}
+        run: terraform init -backend=false
+
+      - name: Terraform Format
+        working-directory: terraform/${{ matrix.provider }}
+        run: terraform fmt -check
+
+      - name: Terraform Validate
+        working-directory: terraform/${{ matrix.provider }}
+        run: terraform validate
+
+  k8s-validate:
+    name: Validate Kubernetes
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Setup Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Validate Base Manifests
+        run: |
+          kustomize build k8s/base > /dev/null
+
+      - name: Validate Provider Overlays
+        run: |
+          for provider in aws gcp azure oracle; do
+            echo "Validating $provider overlay..."
+            kustomize build k8s/overlays/$provider > /dev/null
+          done
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Terraform Lint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: Run TFLint
+        run: |
+          for provider in aws gcp azure oracle; do
+            echo "Linting $provider..."
+            cd terraform/$provider
+            tflint --init
+            tflint
+            cd ../..
+          done
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: terraform,kubernetes
+          skip_check: "CKV_K8S_21,CKV_AWS_23"  # Skip noisy checks
