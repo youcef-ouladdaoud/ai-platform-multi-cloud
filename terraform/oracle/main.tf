@@ -1,8 +1,11 @@
 locals {
   cluster_name = "${var.project_name}-${var.environment}"
   
-  # Cluster connection details from OKE
-  cluster_endpoint = try("https://${oci_containerengine_cluster.primary.endpoints[0].private_endpoint}", "")
+  # Use public endpoint for external access (Terraform from local machine)
+  cluster_endpoint = try(
+    oci_containerengine_cluster.primary.endpoints[0].public_endpoint != "" ? "https://${oci_containerengine_cluster.primary.endpoints[0].public_endpoint}" : "https://${oci_containerengine_cluster.primary.endpoints[0].private_endpoint}",
+    ""
+  )
   
   # Get kubeconfig content and decode from base64
   cluster_kubeconfig = try(data.oci_containerengine_cluster_kube_config.primary.content, "")
@@ -200,10 +203,11 @@ resource "oci_containerengine_cluster" "primary" {
 
 # Node Pool
 resource "oci_containerengine_node_pool" "general" {
-  cluster_id     = oci_containerengine_cluster.primary.id
-  compartment_id = var.compartment_ocid
-  name           = "${local.cluster_name}-general"
-  node_shape     = var.node_shape
+  cluster_id         = oci_containerengine_cluster.primary.id
+  compartment_id     = var.compartment_ocid
+  name               = "${local.cluster_name}-general"
+  node_shape         = var.node_shape
+  kubernetes_version = var.kubernetes_version
 
   node_shape_config {
     ocpus         = var.node_ocpus
@@ -225,6 +229,7 @@ resource "oci_containerengine_node_pool" "general" {
   node_source_details {
     image_id    = data.oci_core_images.latest_image.images[0].id
     source_type = "IMAGE"
+    boot_volume_size_in_gbs = 100
   }
 
   initial_node_labels {
