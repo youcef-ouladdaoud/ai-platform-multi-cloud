@@ -150,9 +150,9 @@ resource "oci_core_security_list" "private" {
   }
 }
 
-# Subnets
+# Subnets - dynamically created based on available ADs (max 3)
 resource "oci_core_subnet" "public" {
-  count             = 3
+  count             = min(3, length(data.oci_identity_availability_domains.ads.availability_domains))
   cidr_block        = cidrsubnet(var.vcn_cidr, 8, count.index)
   compartment_id    = var.compartment_ocid
   vcn_id            = oci_core_vcn.main.id
@@ -164,7 +164,7 @@ resource "oci_core_subnet" "public" {
 }
 
 resource "oci_core_subnet" "private" {
-  count             = 3
+  count             = min(3, length(data.oci_identity_availability_domains.ads.availability_domains))
   cidr_block        = cidrsubnet(var.vcn_cidr, 8, count.index + 10)
   compartment_id    = var.compartment_ocid
   vcn_id            = oci_core_vcn.main.id
@@ -208,36 +208,29 @@ resource "oci_containerengine_node_pool" "general" {
   compartment_id = var.compartment_ocid
   name           = "${local.cluster_name}-general"
   node_shape     = var.node_shape
-  
+
   node_shape_config {
     ocpus         = var.node_ocpus
     memory_in_gbs = var.node_memory
   }
-  
+
   node_config_details {
-    placement_configs {
-      availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
-      subnet_id           = oci_core_subnet.private[0].id
+    dynamic "placement_configs" {
+      for_each = slice(oci_core_subnet.private, 0, min(3, length(data.oci_identity_availability_domains.ads.availability_domains)))
+      content {
+        availability_domain = data.oci_identity_availability_domains.ads.availability_domains[placement_configs.key].name
+        subnet_id           = placement_configs.value.id
+      }
     }
-    
-    placement_configs {
-      availability_domain = data.oci_identity_availability_domains.ads.availability_domains[1].name
-      subnet_id           = oci_core_subnet.private[1].id
-    }
-    
-    placement_configs {
-      availability_domain = data.oci_identity_availability_domains.ads.availability_domains[2].name
-      subnet_id           = oci_core_subnet.private[2].id
-    }
-    
+
     size = var.node_count
   }
-  
+
   node_source_details {
     image_id    = data.oci_core_images.latest_image.images[0].id
     source_type = "IMAGE"
   }
-  
+
   initial_node_labels {
     key   = "workload"
     value = "general"
