@@ -281,6 +281,12 @@ data "oci_core_images" "latest_image" {
   operating_system_version = "8"
   sort_by                  = "TIMECREATED"
   sort_order               = "DESC"
+
+  filter {
+    name   = "display_name"
+    values = ["oke-*"]
+    regex  = true
+  }
 }
 
 data "oci_core_images" "latest_gpu_image" {
@@ -290,6 +296,12 @@ data "oci_core_images" "latest_gpu_image" {
   shape                    = var.gpu_node_shape
   sort_by                  = "TIMECREATED"
   sort_order               = "DESC"
+
+  filter {
+    name   = "display_name"
+    values = ["oke-*"]
+    regex  = true
+  }
 }
 
 # Object Storage bucket for models
