@@ -213,15 +213,36 @@ Access at: http://localhost:8080
 
 ## 🔄 CI/CD with GitHub Actions
 
-Configure repository secrets:
+This project includes automated CI/CD pipelines for all cloud providers.
 
-| Secret | Description |
-|--------|-------------|
-| `OLLAMA_API_KEY` | Your Ollama Cloud API key |
-| `OPENAI_API_KEY` | OpenAI API key (optional) |
-| Provider-specific credentials | AWS/GCP/Azure/Oracle keys |
+### Quick Setup
 
-Push to `main` branch triggers automatic deployment.
+1. **Fork this repository** (it's public so GitHub Actions are free!)
+2. **Configure secrets** (see detailed guides below):
+   - Get Ollama API Key: https://ollama.com/settings/api
+   - Get cloud credentials: Follow [docs/GITHUB_SECRETS_SETUP.md](docs/GITHUB_SECRETS_SETUP.md)
+3. **Add secrets** to GitHub: `Settings → Secrets and variables → Actions`
+4. **Deploy**: Go to `Actions` tab → Select workflow → Run
+
+### Required Secrets by Provider
+
+| Provider | Secrets Required | Setup Guide |
+|----------|------------------|-------------|
+| **Oracle Cloud** ⭐ | `OCI_TENANCY_OCID`, `OCI_USER_OCID`, `OCI_FINGERPRINT`, `OCI_PRIVATE_KEY`, `OCI_COMPARTMENT_OCID`, `OCI_NAMESPACE` | [Setup Guide](docs/GITHUB_SECRETS_SETUP.md#oracle-cloud-setup) |
+| **AWS** | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | [Setup Guide](docs/GITHUB_SECRETS_SETUP.md#aws-setup) |
+| **GCP** | `GCP_PROJECT_ID`, `GCP_SA_KEY` | [Setup Guide](docs/GITHUB_SECRETS_SETUP.md#gcp-setup) |
+| **Azure** | `AZURE_CREDENTIALS`, `ARM_CLIENT_ID`, `ARM_CLIENT_SECRET`, `ARM_SUBSCRIPTION_ID`, `ARM_TENANT_ID` | [Setup Guide](docs/GITHUB_SECRETS_SETUP.md#azure-setup) |
+| **Common** | `OLLAMA_API_KEY` (required), `OPENAI_API_KEY` (optional) | [Get Ollama Key](https://ollama.com/settings/api) |
+
+### Documentation
+
+- 📋 **[Quick Reference](docs/SECRETS_QUICK_REFERENCE.md)** - Quick table to fill in your values
+- 📖 **[Complete Setup Guide](docs/GITHUB_SECRETS_SETUP.md)** - Step-by-step with screenshots
+- 🔧 **[Setup Script](scripts/setup-github-secrets.sh)** - Interactive script to add secrets
+
+### Automatic Deployment
+
+Push to `main` branch triggers automatic deployment to your configured environments.
 
 ## 🛠️ Troubleshooting
 
