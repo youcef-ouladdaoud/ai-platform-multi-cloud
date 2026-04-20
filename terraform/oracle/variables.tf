@@ -57,7 +57,7 @@ variable "vcn_cidr" {
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "v1.31.1"
+  default     = "v1.35.0"
 }
 
 variable "node_shape" {
