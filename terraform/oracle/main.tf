@@ -278,30 +278,18 @@ data "oci_identity_availability_domains" "ads" {
 data "oci_core_images" "latest_image" {
   compartment_id           = var.compartment_ocid
   operating_system         = "Oracle Linux"
-  operating_system_version = "8"
+  operating_system_version = "9"
   sort_by                  = "TIMECREATED"
   sort_order               = "DESC"
-
-  filter {
-    name   = "display_name"
-    values = ["oke-*"]
-    regex  = true
-  }
 }
 
 data "oci_core_images" "latest_gpu_image" {
   compartment_id           = var.compartment_ocid
   operating_system         = "Oracle Linux"
-  operating_system_version = "8"
+  operating_system_version = "9"
   shape                    = var.gpu_node_shape
   sort_by                  = "TIMECREATED"
   sort_order               = "DESC"
-
-  filter {
-    name   = "display_name"
-    values = ["oke-*"]
-    regex  = true
-  }
 }
 
 # Object Storage bucket for models
