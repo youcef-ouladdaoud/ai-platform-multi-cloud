@@ -19,18 +19,17 @@ terraform {
   }
 
   # Backend configuration - use S3-compatible for OCI Object Storage
-  # For local testing, run: terraform init -backend=false
-  # Then: terraform init -backend-config="path=terraform.tfstate"
-  backend "s3" {
-    bucket   = "ai-platform-terraform-state"
-    key      = "oracle/terraform.tfstate"
-    region   = "us-ashburn-1"
-    endpoint = "https://placeholder-namespace.compat.objectstorage.us-ashburn-1.oraclecloud.com"
-
-    skip_region_validation      = true
-    skip_credentials_validation = true
-    skip_metadata_api_check     = true
-  }
+  # Uncomment and configure when ready to use remote state:
+  # backend "s3" {
+  #   bucket   = "ai-platform-terraform-state"
+  #   key      = "oracle/terraform.tfstate"
+  #   region   = "us-ashburn-1"
+  #   endpoint = "https://YOUR_NAMESPACE.compat.objectstorage.us-ashburn-1.oraclecloud.com"
+  #
+  #   skip_region_validation      = true
+  #   skip_credentials_validation = true
+  #   skip_metadata_api_check     = true
+  # }
 }
 
 provider "oci" {
@@ -43,14 +42,14 @@ provider "oci" {
 
 provider "kubernetes" {
   host                   = local.cluster_endpoint
-  cluster_ca_certificate = base64decode(local.cluster_ca_cert)
+  cluster_ca_certificate = local.cluster_ca_cert != "" ? base64decode(local.cluster_ca_cert) : ""
   token                  = local.cluster_token
 }
 
 provider "helm" {
   kubernetes {
     host                   = local.cluster_endpoint
-    cluster_ca_certificate = base64decode(local.cluster_ca_cert)
+    cluster_ca_certificate = local.cluster_ca_cert != "" ? base64decode(local.cluster_ca_cert) : ""
     token                  = local.cluster_token
   }
 }
