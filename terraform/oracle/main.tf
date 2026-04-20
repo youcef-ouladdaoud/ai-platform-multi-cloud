@@ -80,7 +80,7 @@ resource "oci_core_route_table" "private" {
   }
   
   route_rules {
-    destination       = "all-services"
+    destination       = data.oci_core_services.all_services.services[0].cidr_block
     destination_type  = "SERVICE_CIDR_BLOCK"
     network_entity_id = oci_core_service_gateway.main.id
   }
@@ -189,10 +189,6 @@ resource "oci_containerengine_cluster" "primary" {
     add_ons {
       is_kubernetes_dashboard_enabled = false
       is_tiller_enabled              = false
-    }
-    
-    admission_controller_options {
-      is_pod_security_policy_enabled = true
     }
   }
   
