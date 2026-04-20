@@ -1,9 +1,13 @@
 locals {
   cluster_name = "${var.project_name}-${var.environment}"
   
-  cluster_endpoint = "https://${oci_containerengine_cluster.primary.endpoints[0].private_endpoint}"
-  cluster_ca_cert  = oci_containerengine_cluster.primary.ca_cert
-  cluster_token    = data.oci_containerengine_cluster_kube_config.primary.token
+  # Cluster connection details from OKE
+  cluster_endpoint = try("https://${oci_containerengine_cluster.primary.endpoints[0].private_endpoint}", "")
+  
+  # Get kubeconfig content and decode from base64
+  cluster_kubeconfig = try(data.oci_containerengine_cluster_kube_config.primary.content, "")
+  cluster_ca_cert    = try(local.cluster_kubeconfig != "" ? base64decode(jsondecode(local.cluster_kubeconfig).clusters[0].cluster["certificate-authority-data"]) : "", "")
+  cluster_token      = try(local.cluster_kubeconfig != "" ? jsondecode(local.cluster_kubeconfig).users[0].user.token : "", "")
 }
 
 data "oci_containerengine_cluster_kube_config" "primary" {

@@ -18,17 +18,18 @@ terraform {
     }
   }
 
+  # Backend configuration - use S3-compatible for OCI Object Storage
+  # For local testing, run: terraform init -backend=false
+  # Then: terraform init -backend-config="path=terraform.tfstate"
   backend "s3" {
     bucket   = "ai-platform-terraform-state"
     key      = "oracle/terraform.tfstate"
     region   = "us-ashburn-1"
-    endpoint = "https://\${var.namespace}.compat.objectstorage.\${var.region}.oraclecloud.com"
-    
+    endpoint = "https://placeholder-namespace.compat.objectstorage.us-ashburn-1.oraclecloud.com"
+
     skip_region_validation      = true
     skip_credentials_validation = true
     skip_metadata_api_check     = true
-    skip_requesting_account_id  = true
-    skip_s3_checksum            = true
   }
 }
 

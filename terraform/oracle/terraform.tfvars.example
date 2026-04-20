@@ -1,0 +1,23 @@
+# Example Terraform Variables for OCI
+# Copy this file to terraform.tfvars and fill in your actual values
+# DO NOT commit terraform.tfvars to git - it's in .gitignore
+
+# OCI Authentication (Required)
+tenancy_ocid     = "ocid1.tenancy.oc1..xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+user_ocid        = "ocid1.user.oc1..xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+fingerprint      = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+private_key_path = "~/.oci/oci_api_key.pem"
+compartment_ocid = "ocid1.compartment.oc1..xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+namespace        = "your-namespace"
+
+# Optional Configuration (defaults shown)
+# project_name       = "ai-platform"
+# environment        = "dev"
+# region             = "us-ashburn-1"
+# vcn_cidr           = "10.0.0.0/16"
+# kubernetes_version = "v1.28.2"
+# node_shape         = "VM.Standard.A1.Flex"
+# node_ocpus         = 2
+# node_memory        = 16
+# node_count         = 2
+# gpu_enabled        = false
