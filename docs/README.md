@@ -10,7 +10,17 @@ Welcome to the AI Platform Multi-Cloud documentation!
 |----------|-------------|
 | [SECRETS_QUICK_REFERENCE.md](SECRETS_QUICK_REFERENCE.md) | Quick reference for all GitHub secrets |
 | [GITHUB_SECRETS_SETUP.md](GITHUB_SECRETS_SETUP.md) | Complete step-by-step guide for configuring secrets |
+| [LOCAL_TESTING_ORACLE.md](LOCAL_TESTING_ORACLE.md) | Test locally with Oracle Cloud before GitHub deployment |
 | [../README.md](../README.md) | Main project documentation and quick start |
+
+### Local Testing
+
+Want to test locally before using GitHub Actions? Follow these guides:
+
+| Guide | Description |
+|-------|-------------|
+| [LOCAL_TESTING_ORACLE.md](LOCAL_TESTING_ORACLE.md) | Test Oracle Cloud deployment locally |
+| [scripts/test-oracle-local.sh](../scripts/test-oracle-local.sh) | Interactive script for local testing |
 
 ### Cloud Provider Setup
 
